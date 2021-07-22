@@ -1,7 +1,6 @@
 adv_dbg_if
 apb
 axi
-riscv
-zero-riscy
-or10n
+cv32e40p
+ibex
 fpu

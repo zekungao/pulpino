@@ -52,7 +52,7 @@ if [ $? != 0 ] ; then exit 2 ; fi
 eval set -- "$OPTS"
 
 DEFAULT_PROCESS="functional"
-DEFAULT_CORE=""
+DEFAULT_CORE="zeroriscy"
 DEFAULT_COVERAGE=0
 DEFAULT_MEMLOAD="PRELOAD"
 DEFAULT_POSTLAYOUT=""

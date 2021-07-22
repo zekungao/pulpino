@@ -39,7 +39,7 @@ apb/apb_timer:
 # apb/apb_uart:
 #   commit: pulpinov1
 apb/apb_uart_v:
-  commit: master
+  commit: pulpinov1
 apb/apb_uart_sv:
   commit: pulpinov1
 apb/apb2per:
@@ -67,12 +67,12 @@ axi/core2axi:
 adv_dbg_if:
   commit: pulpinov1
 
-riscv:
+cv32e40p:
   commit: pulpinov1
   # Define ASIC_BEHAVIOR to let CSR simulation / synthesis beahvior consistant.
   defines: ["ASIC_BEHAVIOR"]
 
-zero-riscy:
+ibex:
   commit: pulpinov1
   # Define ASIC_BEHAVIOR to let CSR simulation / synthesis beahvior consistant.
   defines: ["ASIC_BEHAVIOR"]
