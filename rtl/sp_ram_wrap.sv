@@ -45,47 +45,39 @@ module sp_ram_wrap
   // TODO: we should kill synthesis when the ram size is larger than what we
   // have here
 
-`elsif ASIC
-   // RAM bypass logic
-   logic [31:0] ram_out_int;
-   // assign rdata_o = (bypass_en_i) ? wdata_i : ram_out_int;
-   assign rdata_o = ram_out_int;
-
-   sp_ram_bank
-   #(
-    .NUM_BANKS  ( RAM_SIZE/4096 ),
-    .BANK_SIZE  ( 1024          )
-   )
-   sp_ram_bank_i
-   (
-    .clk_i   ( clk                     ),
-    .rstn_i  ( rstn_i                  ),
-    .en_i    ( en_i                    ),
-    .addr_i  ( addr_i                  ),
-    .wdata_i ( wdata_i                 ),
-    .rdata_o ( ram_out_int             ),
-    .we_i    ( (we_i & ~bypass_en_i)   ),
-    .be_i    ( be_i                    )
-   );
-
 `else
+  // RAM bypass logic
+  logic [DATA_WIDTH-1:0] ram_out_int;
+
+  assign rdata_o = (bypass_en_i) ? wdata_i : ram_out_int;
+
   sp_ram
   #(
+    .RAM_SIZE   ( RAM_SIZE   ),
     .ADDR_WIDTH ( ADDR_WIDTH ),
-    .DATA_WIDTH ( DATA_WIDTH ),
-    .NUM_WORDS  ( RAM_SIZE   )
+    .DATA_WIDTH ( DATA_WIDTH )
   )
   sp_ram_i
   (
-    .clk     ( clk       ),
+    .clk     ( clk                   ),
 
-    .en_i    ( en_i      ),
-    .addr_i  ( addr_i    ),
-    .wdata_i ( wdata_i   ),
-    .rdata_o ( rdata_o   ),
-    .we_i    ( we_i      ),
-    .be_i    ( be_i      )
+    .en_i    ( en_i                  ),
+    .addr_i  ( addr_i                ),
+    .wdata_i ( wdata_i               ),
+    .rdata_o ( ram_out_int           ),
+    .we_i    ( (we_i & ~bypass_en_i) ),
+    .be_i    ( be_i                  )
   );
+
+   // synthesis translate_off
+
+   task write_word(
+     input integer byte_addr,
+     input logic [DATA_WIDTH - 1:0] word);
+     sp_ram_i.write_word(byte_addr, word);
+   endtask
+
+   // synthesis translate_on
 `endif
 
 endmodule

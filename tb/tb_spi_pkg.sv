@@ -500,15 +500,15 @@
   endtask
 
   task spi_check_return_codes;
-    output exit_code;
+    output pkg_exit_status::Status status;
 
     spi_read_word(use_qspi, 32'h1A10_7014, recv_data);
     $display("[SPI] Received %X", recv_data);
-    if (recv_data != '0) begin
-      exit_code = `EXIT_FAIL;
-      $display("[SPI] Test FAILED");
-    end else begin
-      exit_code = `EXIT_SUCCESS;
+    if (recv_data === '0) begin
+      status = pkg_exit_status::SUCCESS;
       $display("[SPI] Test OK");
+    end else begin
+      status = pkg_exit_status::FAIL;
+      $display("[SPI] Test FAILED");
     end
   endtask

@@ -8,84 +8,92 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-  logic [31:0]     data_mem[];  // this variable holds the whole memory content
-  logic [31:0]     instr_mem[]; // this variable holds the whole memory content
-  event            event_mem_load;
+generate
+  if (DUT_IMPL == "NORMAL") begin: BANK_WR
+    task write_data_word;
+      input integer      byte_addr;
+      input logic [31:0] word;
+      tb_chip_top_i.top_i.C.i.top_wrapper_i.pulpino_top_i.core_region_i.data_mem.write_word(byte_addr, word);
+    endtask
 
-  task mem_preload;
-    integer      addr;
-    integer      mem_addr;
-    integer      bidx;
-    integer      instr_size;
-    integer      instr_width;
-    integer      data_size;
-    integer      data_width;
-    logic [31:0] data;
-    string       l2_imem_file;
-    string       l2_dmem_file;
-    begin
-      $display("Preloading memory");
+    task write_instr_word;
+      input integer      byte_addr;
+      input logic [31:0] word;
+      tb_chip_top_i.top_i.C.i.top_wrapper_i.pulpino_top_i.core_region_i.instr_mem.sp_ram_wrap_i.write_word(byte_addr, word);
+    endtask
 
-      instr_size   = tb.top_i.core_region_i.instr_mem.sp_ram_wrap_i.RAM_SIZE;
-      instr_width = tb.top_i.core_region_i.instr_mem.sp_ram_wrap_i.DATA_WIDTH;
+  end else begin: BANK_WR
 
-      data_size   = tb.top_i.core_region_i.data_mem.RAM_SIZE;
-      data_width = tb.top_i.core_region_i.data_mem.DATA_WIDTH;
+    task write_data_word;
+      input integer      byte_addr;
+      input logic [31:0] word;
 
-      instr_mem = new [instr_size/4];
-      data_mem  = new [data_size/4];
+      $error("mem_preload not supported with DUT_IMPL: %s", DUT_IMPL);
+      exit_status_if.Done(pkg_exit_status::ERROR);
+    endtask
 
-      if(!$value$plusargs("l2_imem=%s", l2_imem_file))
-         l2_imem_file = "slm_files/l2_stim.slm";
+    task write_instr_word;
+      input integer      byte_addr;
+      input logic [31:0] word;
 
-      $display("Preloading instruction memory from %0s", l2_imem_file);
-      $readmemh(l2_imem_file, instr_mem);
+      $error("mem_preload not supported with DUT_IMPL: %s", DUT_IMPL);
+      exit_status_if.Done(pkg_exit_status::ERROR);
+    endtask
 
-      if(!$value$plusargs("l2_dmem=%s", l2_dmem_file))
-         l2_dmem_file = "slm_files/tcdm_bank0.slm";
-
-      $display("Preloading data memory from %0s", l2_dmem_file);
-      $readmemh(l2_dmem_file, data_mem);
+  end
+endgenerate
 
 
-      // preload data memory
-      for(addr = 0; addr < data_size/4; addr = addr) begin
+logic [31:0]     data_mem[];  // this variable holds the whole memory content
+logic [31:0]     instr_mem[]; // this variable holds the whole memory content
+event            event_mem_load;
 
-        for(bidx = 0; bidx < data_width/8; bidx++) begin
-          mem_addr = addr / (data_width/32);
-          data = data_mem[addr];
 
-          if (bidx%4 == 0)
-            tb.top_i.core_region_i.data_mem.sp_ram_i.mem[mem_addr][bidx] = data[ 7: 0];
-          else if (bidx%4 == 1)
-            tb.top_i.core_region_i.data_mem.sp_ram_i.mem[mem_addr][bidx] = data[15: 8];
-          else if (bidx%4 == 2)
-            tb.top_i.core_region_i.data_mem.sp_ram_i.mem[mem_addr][bidx] = data[23:16];
-          else if (bidx%4 == 3)
-            tb.top_i.core_region_i.data_mem.sp_ram_i.mem[mem_addr][bidx] = data[31:24];
+task mem_preload;
+  integer      addr;
+  integer      instr_size;
+  integer      instr_width;
+  integer      data_size;
+  integer      data_width;
+  logic [31:0] data;
+  string       l2_imem_file;
+  string       l2_dmem_file;
+  begin
+    $display("Preloading memory");
 
-          if (bidx%4 == 3) addr++;
-        end
-      end
+    // Get parameter values from `tb.tb_chip_top_i`
+    instr_size   = tb.tb_chip_top_i.top_i.C.i.top_wrapper_i.pulpino_top_i.core_region_i.instr_mem.sp_ram_wrap_i.RAM_SIZE;
+    instr_width = tb.tb_chip_top_i.top_i.C.i.top_wrapper_i.pulpino_top_i.core_region_i.instr_mem.sp_ram_wrap_i.DATA_WIDTH;
 
-      // preload instruction memory
-      for(addr = 0; addr < instr_size/4; addr = addr) begin
+    data_size   = tb.tb_chip_top_i.top_i.C.i.top_wrapper_i.pulpino_top_i.core_region_i.data_mem.RAM_SIZE;
+    data_width = tb.tb_chip_top_i.top_i.C.i.top_wrapper_i.pulpino_top_i.core_region_i.data_mem.DATA_WIDTH;
 
-        for(bidx = 0; bidx < instr_width/8; bidx++) begin
-          mem_addr = addr / (instr_width/32);
-          data = instr_mem[addr];
+    instr_mem = new [instr_size/4];
+    data_mem  = new [data_size/4];
 
-          if (bidx%4 == 0)
-            tb.top_i.core_region_i.instr_mem.sp_ram_wrap_i.sp_ram_i.mem[mem_addr][bidx] = data[ 7: 0];
-          else if (bidx%4 == 1)
-            tb.top_i.core_region_i.instr_mem.sp_ram_wrap_i.sp_ram_i.mem[mem_addr][bidx] = data[15: 8];
-          else if (bidx%4 == 2)
-            tb.top_i.core_region_i.instr_mem.sp_ram_wrap_i.sp_ram_i.mem[mem_addr][bidx] = data[23:16];
-          else if (bidx%4 == 3)
-            tb.top_i.core_region_i.instr_mem.sp_ram_wrap_i.sp_ram_i.mem[mem_addr][bidx] = data[31:24];
+    if(!$value$plusargs("l2_imem=%s", l2_imem_file))
+       l2_imem_file = "slm_files/l2_stim.slm";
 
-          if (bidx%4 == 3) addr++;
-        end
-      end
+    $display("Preloading instruction memory from %0s", l2_imem_file);
+    $readmemh(l2_imem_file, instr_mem);
+
+    if(!$value$plusargs("l2_dmem=%s", l2_dmem_file))
+       l2_dmem_file = "slm_files/tcdm_bank0.slm";
+
+    $display("Preloading data memory from %0s", l2_dmem_file);
+    $readmemh(l2_dmem_file, data_mem);
+
+
+    // preload data memory
+    for(addr = 0; addr < data_size; addr += 4) begin
+        data = data_mem[addr / 4];
+        BANK_WR.write_data_word(addr, data);
     end
-  endtask
+
+    // preload instruction memory
+    for(addr = 0; addr < instr_size; addr += 4) begin
+        data = instr_mem[addr / 4];
+        BANK_WR.write_instr_word(addr, data);
+    end
+  end
+endtask

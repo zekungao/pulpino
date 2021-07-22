@@ -96,11 +96,17 @@ module peripherals
 
     output logic [31:0] [5:0] pad_cfg_o,
     output logic       [31:0] pad_mux_o,
-    output logic       [31:0] boot_addr_o
+    output logic       [31:0] boot_addr_o,
+
+    AXI_BUS.Slave             up_slave,
+    AXI_BUS.Master            up_master,
+    input  logic        [7:0] upio_in_i,
+    output logic        [7:0] upio_out_o,
+    output logic        [7:0] upio_dir_o
   );
 
   localparam APB_ADDR_WIDTH  = 32;
-  localparam APB_NUM_SLAVES  = 8;
+  localparam APB_NUM_SLAVES  = 9;
 
   APB_BUS s_apb_bus();
 
@@ -113,6 +119,7 @@ module peripherals
   APB_BUS s_fll_bus();
   APB_BUS s_soc_ctrl_bus();
   APB_BUS s_debug_bus();
+  APB_BUS s_up_bus();
 
   logic [1:0]   s_spim_event;
   logic [3:0]   timer_irq;
@@ -121,6 +128,7 @@ module peripherals
   logic         s_uart_event;
   logic         i2c_event;
   logic         s_gpio_event;
+  logic         s_up_event;
 
   //////////////////////////////////////////////////////////////////
   ///                                                            ///
@@ -227,7 +235,8 @@ module peripherals
      .i2c_master        ( s_i2c_bus        ),
      .fll_master        ( s_fll_bus        ),
      .soc_ctrl_master   ( s_soc_ctrl_bus   ),
-     .debug_master      ( s_debug_bus      )
+     .debug_master      ( s_debug_bus      ),
+     .user_plugin_master( s_up_bus         )
   );
 
   //////////////////////////////////////////////////////////////////
@@ -236,7 +245,8 @@ module peripherals
   ///                                                            ///
   //////////////////////////////////////////////////////////////////
 
-  `ifndef VERILATOR
+  // `ifndef VERILATOR
+  // Verilog apb_uart which is converted from VHDL is used.
   apb_uart apb_uart_i (
     .CLK      ( clk_int[1]   ),
     .RSTN     ( rst_n        ),
@@ -263,30 +273,30 @@ module peripherals
     .SIN      ( uart_rx     ),
     .SOUT     ( uart_tx     )
   );
-  `else
-  apb_uart_sv
-    #(
-       .APB_ADDR_WIDTH( 3 )
-    )
-    apb_uart_i
-    (
-      .CLK      ( clk_int[1]            ),
-      .RSTN     ( rst_n                 ),
+  // `else
+  // apb_uart_sv
+  //   #(
+  //      .APB_ADDR_WIDTH( 3 )
+  //   )
+  //   apb_uart_i
+  //   (
+  //     .CLK      ( clk_int[1]            ),
+  //     .RSTN     ( rst_n                 ),
 
-      .PSEL     ( s_uart_bus.psel       ),
-      .PENABLE  ( s_uart_bus.penable    ),
-      .PWRITE   ( s_uart_bus.pwrite     ),
-      .PADDR    ( s_uart_bus.paddr[4:2] ),
-      .PWDATA   ( s_uart_bus.pwdata     ),
-      .PRDATA   ( s_uart_bus.prdata     ),
-      .PREADY   ( s_uart_bus.pready     ),
-      .PSLVERR  ( s_uart_bus.pslverr    ),
+  //     .PSEL     ( s_uart_bus.psel       ),
+  //     .PENABLE  ( s_uart_bus.penable    ),
+  //     .PWRITE   ( s_uart_bus.pwrite     ),
+  //     .PADDR    ( s_uart_bus.paddr[4:2] ),
+  //     .PWDATA   ( s_uart_bus.pwdata     ),
+  //     .PRDATA   ( s_uart_bus.prdata     ),
+  //     .PREADY   ( s_uart_bus.pready     ),
+  //     .PSLVERR  ( s_uart_bus.pslverr    ),
 
-      .rx_i     ( uart_rx               ),
-      .tx_o     ( uart_tx               ),
-      .event_o  ( s_uart_event          )
-    );
-  `endif
+  //     .rx_i     ( uart_rx               ),
+  //     .tx_o     ( uart_tx               ),
+  //     .event_o  ( s_uart_event          )
+  //   );
+  // `endif
 
   //////////////////////////////////////////////////////////////////
   ///                                                            ///
@@ -403,8 +413,8 @@ module peripherals
     .PREADY           ( s_event_unit_bus.pready     ),
     .PSLVERR          ( s_event_unit_bus.pslverr    ),
 
-    .irq_i            ( {timer_irq, s_spim_event, s_gpio_event, s_uart_event, i2c_event, 23'b0} ),
-    .event_i          ( {timer_irq, s_spim_event, s_gpio_event, s_uart_event, i2c_event, 23'b0} ),
+    .irq_i            ( {timer_irq, s_spim_event, s_gpio_event, s_uart_event, i2c_event, s_up_event, 22'b0} ),
+    .event_i          ( {timer_irq, s_spim_event, s_gpio_event, s_uart_event, i2c_event, s_up_event, 22'b0} ),
     .irq_o            ( irq_o              ),
 
     .fetch_enable_i   ( fetch_enable_i     ),
@@ -545,5 +555,27 @@ module peripherals
     .per_master_r_valid_i ( debug.rvalid            ),
     .per_master_r_opc_i   ( '0                      ),
     .per_master_r_rdata_i ( debug.rdata             )
+  );
+
+  //////////////////////////////////////////////////////////////////
+  ///                                                            ///
+  /// APB Slave 9: USER PLUGIN                                   ///
+  ///                                                            ///
+  //////////////////////////////////////////////////////////////////
+
+  user_plugin user_plugin_i
+  (
+    .clk_i      ( clk_int[8] ),
+    .rst_n      ( rst_n      ),
+
+    .apb_slv    ( s_up_bus   ),
+    .axi_slv    ( up_slave   ),
+    .axi_mstr   ( up_master  ),
+
+    .upio_in_i  ( upio_in_i  ),
+    .upio_out_o ( upio_out_o ),
+    .upio_dir_o ( upio_dir_o ),
+
+    .int_o      ( s_up_event )
   );
 endmodule

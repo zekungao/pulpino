@@ -19,7 +19,7 @@
 
 module pulpino_top
   #(
-    parameter USE_ZERO_RISCY       = 0,
+    parameter USE_ZERO_RISCY       = 1,
     parameter RISCY_RV32F          = 0,
     parameter ZERO_RV32M           = 1,
     parameter ZERO_RV32E           = 0
@@ -83,6 +83,10 @@ module pulpino_top
     output logic       [31:0] gpio_dir,
     output logic [31:0] [5:0] gpio_padcfg,
 
+    input  logic        [7:0] upio_in_i,
+    output logic        [7:0] upio_out_o,
+    output logic        [7:0] upio_dir_o,
+
     // JTAG signals
     input  logic              tck_i,
     input  logic              trstn_i,
@@ -119,7 +123,7 @@ module pulpino_top
     .AXI_ID_WIDTH   ( `AXI_ID_SLAVE_WIDTH ),
     .AXI_USER_WIDTH ( `AXI_USER_WIDTH     )
   )
-  slaves[2:0]();
+  slaves[3:0]();
 
   AXI_BUS
   #(
@@ -128,7 +132,7 @@ module pulpino_top
     .AXI_ID_WIDTH   ( `AXI_ID_MASTER_WIDTH ),
     .AXI_USER_WIDTH ( `AXI_USER_WIDTH      )
   )
-  masters[2:0]();
+  masters[3:0]();
 
   DEBUG_BUS
   debug();
@@ -285,7 +289,14 @@ module pulpino_top
     .fll1_lock_i     ( lock_fll_int      ),
     .pad_cfg_o       ( pad_cfg_o         ),
     .pad_mux_o       ( pad_mux_o         ),
-    .boot_addr_o     ( boot_addr_int     )
+    .boot_addr_o     ( boot_addr_int     ),
+
+    .up_slave        ( slaves[3]         ),
+    .up_master       ( masters[3]        ),
+    .upio_in_i       ( upio_in_i         ),
+    .upio_out_o      ( upio_out_o        ),
+    .upio_dir_o      ( upio_dir_o        )
+
   );
 
 
@@ -295,8 +306,10 @@ module pulpino_top
 
   axi_node_intf_wrap
   #(
-    .NB_MASTER      ( 3                    ),
-    .NB_SLAVE       ( 3                    ),
+    // Number of master ports
+    .NB_MASTER      ( 4                    ),
+    // Number of slave ports
+    .NB_SLAVE       ( 4                    ),
     .AXI_ADDR_WIDTH ( `AXI_ADDR_WIDTH      ),
     .AXI_DATA_WIDTH ( `AXI_DATA_WIDTH      ),
     .AXI_ID_WIDTH   ( `AXI_ID_MASTER_WIDTH ),
@@ -311,8 +324,8 @@ module pulpino_top
     .master    ( slaves     ),
     .slave     ( masters    ),
 
-    .start_addr_i ( { 32'h1A10_0000, 32'h0010_0000, 32'h0000_0000 } ),
-    .end_addr_i   ( { 32'h1A11_FFFF, 32'h001F_FFFF, 32'h000F_FFFF } )
+    .start_addr_i ( { 32'h1A12_0000, 32'h1A10_0000, 32'h0010_0000, 32'h0000_0000 } ),
+    .end_addr_i   ( { 32'h1A13_FFFF, 32'h1A11_FFFF, 32'h001F_FFFF, 32'h000F_FFFF } )
   );
 
 endmodule

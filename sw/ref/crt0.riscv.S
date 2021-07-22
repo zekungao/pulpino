@@ -91,6 +91,14 @@ main_entry:
   jal  x1, exit
 
 
+/* ========================================== [ User Plugin handler ] === */
+ISR_UP_ASM:
+  addi x2, x2, -EXCEPTION_STACK_SIZE
+  sw x1, 0x5C(x2)
+  jal x1, store_regs
+  la x1, end_except
+  jal x0, ISR_UP
+
 /* ========================================== [ I2C handler ] === */
 ISR_I2C_ASM:
   addi x2, x2, -EXCEPTION_STACK_SIZE
@@ -263,10 +271,11 @@ _fini:
   // external interrupts are handled by the same callback
   // until compiler supports IRQ routines
   .org 0x00
-  .rept 23
+  .rept 22
   nop                       // unused
   .endr
 
+  jal x0, ISR_UP_ASM        // 22: user plugin
   jal x0, ISR_I2C_ASM 	    // 23: i2c
   jal x0, ISR_UART_ASM 	    // 24: uart
   jal x0, ISR_GPIO_ASM 	    // 25: gpio

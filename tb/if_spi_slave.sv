@@ -21,10 +21,14 @@ interface spi_slave
   localparam SPI_QUAD_RX = 2'b10;
 
   logic       clk;
-  logic [3:0] sdo;
+  wire  [3:0] sdo;
   logic [3:0] sdi;
   logic       csn;
   logic [1:0] padmode;
+
+  initial begin
+    sdi = 'bz;
+  end
 
   //---------------------------------------------------------------------------
   // Slave Tasks

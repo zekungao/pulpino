@@ -2,10 +2,12 @@
 # \
 exec vsim -64 -do "$0"
 
-set TB_TEST $::env(TB_TEST)
-set VSIM_FLAGS    "-GTEST=\"$TB_TEST\""
+source ./tcl_files/run_common.tcl
 
-set TB            tb
-set MEMLOAD       "PRELOAD"
+if { [file exists ./tcl_files.icb/run.tcl] } {
+  source ./tcl_files.icb/run.tcl
+}
+
+set VSIM_VIP_LIBS   "$VSIM_VIP_LIBS -L vip_lib"
 
 source ./tcl_files/config/vsim.tcl

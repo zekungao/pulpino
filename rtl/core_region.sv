@@ -21,7 +21,7 @@ module core_region
     parameter AXI_USER_WIDTH       = 0,
     parameter DATA_RAM_SIZE        = 32768, // in bytes
     parameter INSTR_RAM_SIZE       = 32768, // in bytes
-    parameter USE_ZERO_RISCY       = 0,
+    parameter USE_ZERO_RISCY       = 1,
     parameter RISCY_RV32F          = 0,
     parameter ZERO_RV32M           = 1,
     parameter ZERO_RV32E           = 0

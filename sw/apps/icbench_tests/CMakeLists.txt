@@ -1,0 +1,6 @@
+add_subdirectory(SPI_flash_test)
+add_subdirectory(SPI_CSN1_test)
+add_subdirectory(SPI_CSN2_test)
+add_subdirectory(SPI_CSN3_test)
+add_subdirectory(gpio_test)
+add_subdirectory(gpio_fast_test)

@@ -2,3 +2,5 @@
 sw/build/*
 imperio
 ipstools
+.vscode
+build

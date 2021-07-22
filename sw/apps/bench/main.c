@@ -50,5 +50,8 @@ int main() {
 
   perf_print_all();
 
+  if (check == 0) {
+    return 1;
+  }
   return 0;
 }

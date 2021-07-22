@@ -21,13 +21,24 @@ const char g_numbers[] = {
                          };
 
 int check_spi_flash();
-void load_block(unsigned int addr, unsigned int len, int* dest);
+void read_words(uint32_t addr, uint32_t* wordBuf, unsigned int wordSize);
 void uart_send_block_done(unsigned int i);
 void jump_and_start(volatile int *ptr);
+
+#define UART_SEND_STR(s) do { \
+  uart_send(s, sizeof(s) - 1); \
+} while(0)
+
+#define UART_SEND_STR_AND_WAIT_TX_DONE(s) do { \
+  UART_SEND_STR(s); \
+  uart_wait_tx_done(); \
+} while(0)
 
 int main()
 {
   /* sets direction for SPI master pins with only one CS */
+  // NOTE: spi_set_master write PADMUX register, which is not used by ICBENCH pulpino.
+  //       And spi_setup_master can be removed.
   spi_setup_master(1);
   uart_set_cfg(0, 1);
 
@@ -40,29 +51,16 @@ int main()
     #endif
   }
 
-  /* divide sys clock by 4 */
+  /* divide sys clock by 4 + 1 */
+  // SPI clock = Fsoc / (2 * (CLKDIV + 1))
   *(volatile int*) (SPI_REG_CLKDIV) = 0x4;
 
   if (check_spi_flash()) {
-    uart_send("ERROR: Spansion SPI flash not found\n", 36);
+    UART_SEND_STR("ERROR: Winbond SPI flash not found\n");
     while (1);
   }
 
-
-  uart_send("Loading from SPI\n", 17);
-
-  // sends write enable command
-  spi_setup_cmd_addr(0x06, 8, 0, 0);
-  spi_set_datalen(0);
-  spi_start_transaction(SPI_CMD_WR, SPI_CSN0);
-  while ((spi_get_status() & 0xFFFF) != 1);
-
-  // enables QPI
-  // cmd 0x71 write any register
-  spi_setup_cmd_addr(0x71, 8, 0x80000348, 32);
-  spi_set_datalen(0);
-  spi_start_transaction(SPI_CMD_WR, SPI_CSN0);
-  while ((spi_get_status() & 0xFFFF) != 1);
+  UART_SEND_STR_AND_WAIT_TX_DONE("Loading from SPI\n");
 
   //-----------------------------------------------------------
   // Read header
@@ -71,13 +69,7 @@ int main()
   int header_ptr[8];
   int addr = 0;
 
-  spi_setup_dummy(8, 0);
-
-  // cmd 0xEB fast read, needs 8 dummy cycles
-  spi_setup_cmd_addr(0xEB, 8, ((addr << 8) & 0xFFFFFF00), 32);
-  spi_set_datalen(8 * 32);
-  spi_start_transaction(SPI_CMD_QRD, SPI_CSN0);
-  spi_read_fifo(header_ptr, 8 * 32);
+  read_words(addr, (uint32_t*)header_ptr, sizeof(header_ptr) / sizeof(header_ptr[0]));
 
   int instr_start = header_ptr[0];
   int *instr = (int *) header_ptr[1];
@@ -89,55 +81,42 @@ int main()
   int data_size = header_ptr[6];
   int data_blocks = header_ptr[7];
 
+  #define BLOCK_BYTES 4096
+  #define BLOCK_WORDS (BLOCK_BYTES / 4)
 
   //-----------------------------------------------------------
   // Read Instruction RAM
   //-----------------------------------------------------------
 
-  uart_send("Copying Instructions\n", 21);
+  UART_SEND_STR_AND_WAIT_TX_DONE("Copying Instructions\n");
 
   addr = instr_start;
-  spi_setup_dummy(8, 0);
-  for (int i = 0; i < instr_blocks; i++) { //reads 16 4KB blocks
-    // cmd 0xEB fast read, needs 8 dummy cycles
-    spi_setup_cmd_addr(0xEB, 8, ((addr << 8) & 0xFFFFFF00), 32);
-    spi_set_datalen(32768);
-    spi_start_transaction(SPI_CMD_QRD, SPI_CSN0);
-    spi_read_fifo(instr, 32768);
+  for (int i = 0; i < instr_blocks; i++) {
+    read_words(addr, (uint32_t*)instr, BLOCK_WORDS);
 
-    instr += 0x400;  // new address = old address + 1024 words
-    addr  += 0x1000; // new address = old address + 4KB
+    instr += BLOCK_WORDS; // new address = old address + 1024 words
+    addr  += BLOCK_BYTES; // new address = old address + 4KB
 
     uart_send_block_done(i);
   }
-
-  while ((spi_get_status() & 0xFFFF) != 1);
 
   //-----------------------------------------------------------
   // Read Data RAM
   //-----------------------------------------------------------
 
-  uart_send("Copying Data\n", 13);
+  UART_SEND_STR_AND_WAIT_TX_DONE("Copying Data\n");
 
-  uart_wait_tx_done();
   addr = data_start;
-  spi_setup_dummy(8, 0);
-  for (int i = 0; i < data_blocks; i++) { //reads 16 4KB blocks
-    // cmd 0xEB fast read, needs 8 dummy cycles
-    spi_setup_cmd_addr(0xEB, 8, ((addr << 8) & 0xFFFFFF00), 32);
-    spi_set_datalen(32768);
-    spi_start_transaction(SPI_CMD_QRD, SPI_CSN0);
-    spi_read_fifo(data, 32768);
+  for (int i = 0; i < data_blocks; i++) {
+    read_words(addr, (uint32_t*)data, BLOCK_WORDS);
 
-    data += 0x400;  // new address = old address + 1024 words
-    addr += 0x1000; // new address = old address + 4KB
+    data += BLOCK_WORDS; // new address = old address + 1024 words
+    addr += BLOCK_BYTES; // new address = old address + 4KB
 
     uart_send_block_done(i);
   }
 
-  uart_send("Done, jumping to Instruction RAM.\n", 34);
-
-  uart_wait_tx_done();
+  UART_SEND_STR_AND_WAIT_TX_DONE("Done, jumping to Instruction RAM.\n");
 
   //-----------------------------------------------------------
   // Set new boot address -> exceptions/interrupts/events rely
@@ -154,36 +133,62 @@ int main()
   jump_and_start((volatile int *)(INSTR_RAM_START_ADDR));
 }
 
-int check_spi_flash() {
-  int err = 0;
-  int rd_id[2];
 
-  // reads flash ID
-  spi_setup_cmd_addr(0x9F, 8, 0, 0);
-  spi_set_datalen(64);
+
+/////////////////////
+// Flash: W25Q16JV //
+/////////////////////
+
+#define CMD_READ_JEDEC_ID               0x9F
+#define CMD_READ_DATA                   0x03
+
+// Wait for read/write transition to finish.
+static inline void wait_spi_idle() {
+  while ((spi_get_status() & 0xFFFF) != 1);
+}
+
+static inline void wait_flash_idle() {
+  // Because there is neither erasing nor writing, only reading.
+  // Just wait for SPI idle.
+  wait_spi_idle();
+}
+
+uint32_t read_JEDEC_ID() {
+  uint32_t ret;
+
+  wait_flash_idle();
+  spi_setup_cmd_addr(CMD_READ_JEDEC_ID, 8, 0, 0);
+  spi_set_datalen(24);
   spi_setup_dummy(0, 0);
   spi_start_transaction(SPI_CMD_RD, SPI_CSN0);
-  spi_read_fifo(rd_id, 64);
+  spi_read_fifo((int*)&ret, 24);
+  return ret;
+}
 
+// Read words.
+// One word is 4-byte.
+// Note spi_set_datalen set bit-length, and max bit-length is 65535,
+// about 65535 / 32 = 2047.96875 words.
+// In other words, max wordSize is 2047.
+void read_words(uint32_t addr, uint32_t* wordBuf, unsigned int wordSize) {
+  wait_flash_idle();
+  spi_setup_cmd_addr(CMD_READ_DATA, 8, addr << 8, 24);
+  spi_set_datalen(wordSize * 32);
+  spi_setup_dummy(0, 0);
+  spi_start_transaction(SPI_CMD_RD, SPI_CSN0);
+  spi_read_fifo((int*)wordBuf, wordSize * 32);
+}
 
-  // id should be 0x0102194D
-  if (((rd_id[0] >> 24) & 0xFF) != 0x01)
-    err++;
+int check_spi_flash() {
+  int err = 0;
+  uint32_t rd_id = read_JEDEC_ID();
 
-  // check flash model is 128MB or 256MB 1.8V
-  if ( (((rd_id[0] >> 8) & 0xFFFF) != 0x0219) &&
-       (((rd_id[0] >> 8) & 0xFFFF) != 0x2018) )
+  // id should be 0x00EF4015;
+  // Only check manufacture id
+  if (((rd_id >> 16) & 0xFF) != 0xEF)
     err++;
 
   return err;
-}
-
-void load_block(unsigned int addr, unsigned int len, int* dest) {
-  // cmd 0xEB fast read, needs 8 dummy cycles
-  spi_setup_cmd_addr(0xEB, 8, ((addr << 8) & 0xFFFFFF00), 32);
-  spi_set_datalen(len);
-  spi_start_transaction(SPI_CMD_QRD, SPI_CSN0);
-  spi_read_fifo(dest, len);
 }
 
 void jump_and_start(volatile int *ptr)
@@ -207,12 +212,12 @@ void uart_send_block_done(unsigned int i) {
   unsigned int low  = i & 0xF;
   unsigned int high = i >>  4; // /16
 
-  uart_send("Block ", 6);
+  UART_SEND_STR("Block ");
 
   uart_send(&g_numbers[high], 1);
   uart_send(&g_numbers[low], 1);
 
-  uart_send(" done\n", 6);
+  UART_SEND_STR(" done\n");
 
   uart_wait_tx_done();
 }

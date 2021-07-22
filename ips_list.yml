@@ -35,8 +35,11 @@ apb/apb_spi_master:
   commit: pulpinov1
 apb/apb_timer:
   commit: pulpinov1
-apb/apb_uart:
-  commit: pulpinov1
+# Use apb_uart_v (Verilog) instead of apb_uart (VHDL)
+# apb/apb_uart:
+#   commit: pulpinov1
+apb/apb_uart_v:
+  commit: master
 apb/apb_uart_sv:
   commit: pulpinov1
 apb/apb2per:
@@ -66,9 +69,13 @@ adv_dbg_if:
 
 riscv:
   commit: pulpinov1
+  # Define ASIC_BEHAVIOR to let CSR simulation / synthesis beahvior consistant.
+  defines: ["ASIC_BEHAVIOR"]
 
 zero-riscy:
   commit: pulpinov1
+  # Define ASIC_BEHAVIOR to let CSR simulation / synthesis beahvior consistant.
+  defines: ["ASIC_BEHAVIOR"]
 
 fpu:
   commit: pulpinov1

@@ -38,7 +38,8 @@ void flash_check(testresult_t *result, unsigned int size_initial, unsigned int i
 
 testcase_t testcases[] = {
   { .name = "SPI Master Standard Mode",   .test = check_standard_mode       },
-  { .name = "SPI Master QPI Mode",        .test = check_qpi_mode            },
+  // ICBENCH chip do not support QPI mode.
+  // { .name = "SPI Master QPI Mode",        .test = check_qpi_mode            },
   {0, 0}
 };
 

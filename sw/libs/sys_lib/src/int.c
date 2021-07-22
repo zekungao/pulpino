@@ -18,6 +18,10 @@
 //defining all interrupt handelrs
 //these functions can be redefined by users
 
+// 22: user plugin
+__attribute__ ((weak))
+void ISR_UP (void){ for(;;); }	
+
 // 23: i2c
 __attribute__ ((weak))
 void ISR_I2C (void){ for(;;); }	

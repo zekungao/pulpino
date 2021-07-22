@@ -1,354 +1,214 @@
 /*
-    FreeRTOS V8.2.2 - Copyright (C) 2015 Real Time Engineers Ltd.
-    All rights reserved
-
-    VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
-
-    This file is part of the FreeRTOS distribution.
-
-    FreeRTOS is free software; you can redistribute it and/or modify it under
-    the terms of the GNU General Public License (version 2) as published by the
-    Free Software Foundation >>!AND MODIFIED BY!<< the FreeRTOS exception.
-
-    ***************************************************************************
-    >>!   NOTE: The modification to the GPL is included to allow you to     !<<
-    >>!   distribute a combined work that includes FreeRTOS without being   !<<
-    >>!   obliged to provide the source code for proprietary components     !<<
-    >>!   outside of the FreeRTOS kernel.                                   !<<
-    ***************************************************************************
-
-    FreeRTOS is distributed in the hope that it will be useful, but WITHOUT ANY
-    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-    FOR A PARTICULAR PURPOSE.  Full license text is available on the following
-    link: http://www.freertos.org/a00114.html
-
-    ***************************************************************************
-     *                                                                       *
-     *    FreeRTOS provides completely free yet professionally developed,    *
-     *    robust, strictly quality controlled, supported, and cross          *
-     *    platform software that is more than just the market leader, it     *
-     *    is the industry's de facto standard.                               *
-     *                                                                       *
-     *    Help yourself get started quickly while simultaneously helping     *
-     *    to support the FreeRTOS project by purchasing a FreeRTOS           *
-     *    tutorial book, reference manual, or both:                          *
-     *    http://www.FreeRTOS.org/Documentation                              *
-     *                                                                       *
-    ***************************************************************************
-
-    http://www.FreeRTOS.org/FAQHelp.html - Having a problem?  Start by reading
-    the FAQ page "My application does not run, what could be wrong?".  Have you
-    defined configASSERT()?
-
-    http://www.FreeRTOS.org/support - In return for receiving this top quality
-    embedded software for free we request you assist our global community by
-    participating in the support forum.
-
-    http://www.FreeRTOS.org/training - Investing in training allows your team to
-    be as productive as possible as early as possible.  Now you can receive
-    FreeRTOS training directly from Richard Barry, CEO of Real Time Engineers
-    Ltd, and the world's leading authority on the world's leading RTOS.
-
-    http://www.FreeRTOS.org/plus - A selection of FreeRTOS ecosystem products,
-    including FreeRTOS+Trace - an indispensable productivity tool, a DOS
-    compatible FAT file system, and our tiny thread aware UDP/IP stack.
-
-    http://www.FreeRTOS.org/labs - Where new FreeRTOS products go to incubate.
-    Come and try FreeRTOS+TCP, our new open source TCP/IP stack for FreeRTOS.
-
-    http://www.OpenRTOS.com - Real Time Engineers ltd. license FreeRTOS to High
-    Integrity Systems ltd. to sell under the OpenRTOS brand.  Low cost OpenRTOS
-    licenses offer ticketed support, indemnification and commercial middleware.
-
-    http://www.SafeRTOS.com - High Integrity Systems also provide a safety
-    engineered and independently SIL3 certified version for use in safety and
-    mission critical applications that require provable dependability.
-
-    1 tab == 4 spaces!
-*/
-
-
-#include <stdlib.h>
-#include <int.h>
-#include <utils.h>
-#include <timer.h>
-#include <event.h>
-
-#include "FreeRTOS.h"
-#include "task.h"
+ * FreeRTOS Kernel V10.4.1
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * https://www.FreeRTOS.org
+ * https://github.com/FreeRTOS
+ *
+ * 1 tab == 4 spaces!
+ */
 
 /*-----------------------------------------------------------
- * Implementation of functions defined in portable.h for the RI5CY port.
+ * Implementation of functions defined in portable.h for the RISC-V RV32 port.
  *----------------------------------------------------------*/
 
-/*
- * Macro to save the general purpose registers and the exception program counter (mepc),
- * and than save the stack pointer into the TCB.
- *
- * The first thing we do is disable interrupts.  This is to guard our stack against
- * having a context switch interrupt after we have already pushed the registers onto the stack -
- * causing the 31 (32 register + mepc - x0 - x2) registers to be on the stack twice.
- *
- * Then we load the stack pointer of the current task and push all registers to the stack.
- * The last thing we do is to adjust the stack poitner (sp) to accommodate for the memory
- * we used.
- *
- * The interrupts will have been disabled during the call to portSAVE_CONTEXT()
- * so we need not worry about reading/writing to the stack pointer.
- */
+/* Scheduler includes. */
+#include "FreeRTOS.h"
+#include "task.h"
+#include "portmacro.h"
 
-#define portSAVE_CONTEXT()                                            \
-     int_disable();                                                   \
-     asm volatile ( "addi sp,   sp, -0x6c                       \n\t" \
-                    "sw   x1,   0x04(sp)                        \n\t" \
-                    "sw   x3,   0x08(sp)                        \n\t" \
-                    "sw   x4,   0x0c(sp)                        \n\t" \
-                    "sw   x5,   0x10(sp)                        \n\t" \
-                    "sw   x6,   0x14(sp)                        \n\t" \
-                    "sw   x7,   0x18(sp)                        \n\t" \
-                    "sw   x8,   0x1C(sp)                        \n\t" \
-                    "sw   x9,   0x20(sp)                        \n\t" \
-                    "sw   x10,  0x24(sp)                        \n\t" \
-                    "sw   x11,  0x28(sp)                        \n\t" \
-                    "sw   x12,  0x2c(sp)                        \n\t" \
-                    "sw   x13,  0x30(sp)                        \n\t" \
-                    "sw   x14,  0x34(sp)                        \n\t" \
-                    "sw   x15,  0x38(sp)                        \n\t" \
-                    "sw   x16,  0x3C(sp)                        \n\t" \
-                    "sw   x17,  0x40(sp)                        \n\t" \
-                    "sw   x18,  0x44(sp)                        \n\t" \
-                    "sw   x19,  0x48(sp)                        \n\t" \
-                    "sw   x20,  0x4C(sp)                        \n\t" \
-                    "sw   x21,  0x50(sp)                        \n\t" \
-                    "sw   x22,  0x54(sp)                        \n\t" \
-                    "sw   x23,  0x58(sp)                        \n\t" \
-                    "sw   x24,  0x5c(sp)                        \n\t" \
-                    "sw   x25,  0x60(sp)                        \n\t" \
-                    "sw   x26,  0x64(sp)                        \n\t" \
-                    "sw   x27,  0x68(sp)                        \n\t" \
-                    "sw   x28,  0x6c(sp)                        \n\t" \
-                    "sw   x29,  0x70(sp)                        \n\t" \
-                    "sw   x30,  0x74(sp)                        \n\t" \
-                    "sw   x31,  0x78(sp)                        \n\t" \
-                    "csrr t0,   mepc                            \n\t" \
-                    "sw   t0,   0x00(sp)                        \n\t" \
-                    "lw   t0,   pxCurrentTCB                    \n\t" \
-                    "sw   sp,   (t0)                            \n\t" \
-                );                                                    \
+/* Standard includes. */
+#include "string.h"
 
+#ifdef configCLINT_BASE_ADDRESS
+	#warning The configCLINT_BASE_ADDRESS constant has been deprecated.  configMTIME_BASE_ADDRESS and configMTIMECMP_BASE_ADDRESS are currently being derived from the (possibly 0) configCLINT_BASE_ADDRESS setting.  Please update to define configMTIME_BASE_ADDRESS and configMTIMECMP_BASE_ADDRESS dirctly in place of configCLINT_BASE_ADDRESS.  See https://www.FreeRTOS.org/Using-FreeRTOS-on-RISC-V.html
+#endif
+
+#ifndef configMTIME_BASE_ADDRESS
+	#warning configMTIME_BASE_ADDRESS must be defined in FreeRTOSConfig.h.  If the target chip includes a memory-mapped mtime register then set configMTIME_BASE_ADDRESS to the mapped address.  Otherwise set configMTIME_BASE_ADDRESS to 0.  See https://www.FreeRTOS.org/Using-FreeRTOS-on-RISC-V.html
+#endif
+
+#ifndef configMTIMECMP_BASE_ADDRESS
+	#warning configMTIMECMP_BASE_ADDRESS must be defined in FreeRTOSConfig.h.  If the target chip includes a memory-mapped mtimecmp register then set configMTIMECMP_BASE_ADDRESS to the mapped address.  Otherwise set configMTIMECMP_BASE_ADDRESS to 0.  See https://www.FreeRTOS.org/Using-FreeRTOS-on-RISC-V.html
+#endif
+
+/* Let the user override the pre-loading of the initial LR with the address of
+prvTaskExitError() in case it messes up unwinding of the stack in the
+debugger. */
+#ifdef configTASK_RETURN_ADDRESS
+	#define portTASK_RETURN_ADDRESS	configTASK_RETURN_ADDRESS
+#else
+	#define portTASK_RETURN_ADDRESS	prvTaskExitError
+#endif
+
+/* The stack used by interrupt service routines.  Set configISR_STACK_SIZE_WORDS
+to use a statically allocated array as the interrupt stack.  Alternative leave
+configISR_STACK_SIZE_WORDS undefined and update the linker script so that a
+linker variable names __freertos_irq_stack_top has the same value as the top
+of the stack used by main.  Using the linker script method will repurpose the
+stack that was used by main before the scheduler was started for use as the
+interrupt stack after the scheduler has started. */
+#ifdef configISR_STACK_SIZE_WORDS
+	static __attribute__ ((aligned(16))) StackType_t xISRStack[ configISR_STACK_SIZE_WORDS ] = { 0 };
+	const StackType_t xISRStackTop = ( StackType_t ) &( xISRStack[ configISR_STACK_SIZE_WORDS & ~portBYTE_ALIGNMENT_MASK ] );
+
+	/* Don't use 0xa5 as the stack fill bytes as that is used by the kernerl for
+	the task stacks, and so will legitimately appear in many positions within
+	the ISR stack. */
+	#define portISR_STACK_FILL_BYTE	0xee
+#else
+	extern const uint32_t __freertos_irq_stack_top[];
+	const StackType_t xISRStackTop = ( StackType_t ) __freertos_irq_stack_top;
+#endif
 
 /*
- * Opposite to portSAVE_CONTEXT().  Interrupts will have been disabled during
- * the context save so we can write to the stack pointer.
+ * Setup the timer to generate the tick interrupts.  The implementation in this
+ * file is weak to allow application writers to change the timer used to
+ * generate the tick interrupt.
  */
-#define portRESTORE_CONTEXT()                                         \
-    asm volatile (  "lw   sp,   pxCurrentTCB                    \n\t" \
-                    "lw   sp,   (sp)                            \n\t" \
-                    "lw   t0,   0x00(sp)                        \n\t" \
-                    "csrw mepc, t0                              \n\t" \
-                    "lw   x1,   0x04(sp)                        \n\t" \
-                    "lw   x3,   0x08(sp)                        \n\t" \
-                    "lw   x4,   0x0c(sp)                        \n\t" \
-                    "lw   x5,   0x10(sp)                        \n\t" \
-                    "lw   x6,   0x14(sp)                        \n\t" \
-                    "lw   x7,   0x18(sp)                        \n\t" \
-                    "lw   x8,   0x1c(sp)                        \n\t" \
-                    "lw   x9,   0x20(sp)                        \n\t" \
-                    "lw   x10,  0x24(sp)                        \n\t" \
-                    "lw   x11,  0x28(sp)                        \n\t" \
-                    "lw   x12,  0x2c(sp)                        \n\t" \
-                    "lw   x13,  0x30(sp)                        \n\t" \
-                    "lw   x14,  0x34(sp)                        \n\t" \
-                    "lw   x15,  0x38(sp)                        \n\t" \
-                    "lw   x16,  0x3c(sp)                        \n\t" \
-                    "lw   x17,  0x40(sp)                        \n\t" \
-                    "lw   x18,  0x44(sp)                        \n\t" \
-                    "lw   x19,  0x48(sp)                        \n\t" \
-                    "lw   x20,  0x4C(sp)                        \n\t" \
-                    "lw   x21,  0x50(sp)                        \n\t" \
-                    "lw   x22,  0x54(sp)                        \n\t" \
-                    "lw   x23,  0x58(sp)                        \n\t" \
-                    "lw   x24,  0x5C(sp)                        \n\t" \
-                    "lw   x25,  0x60(sp)                        \n\t" \
-                    "lw   x26,  0x64(sp)                        \n\t" \
-                    "lw   x27,  0x68(sp)                        \n\t" \
-                    "lw   x28,  0x6C(sp)                        \n\t" \
-                    "lw   x29,  0x70(sp)                        \n\t" \
-                    "lw   x30,  0x74(sp)                        \n\t" \
-                    "lw   x31,  0x78(sp)                        \n\t" \
-                    "addi sp,   sp,             0x7c            \n\t" \
-                );                                                    \
+void vPortSetupTimerInterrupt( void ) __attribute__(( weak ));
 
 /*-----------------------------------------------------------*/
 
-/*
- * Setup mtimcmp and mtime regisiter to periodically generate tick interrupts.
- */
-static void prvSetupTimerInterrupt( void );
+/* Used to program the machine timer compare register. */
+uint64_t ullNextTime = 0ULL;
+const uint64_t *pullNextTime = &ullNextTime;
+const size_t uxTimerIncrementsForOneTick = ( size_t ) ( ( configCPU_CLOCK_HZ ) / ( configTICK_RATE_HZ ) ); /* Assumes increment won't go over 32-bits. */
+uint32_t const ullMachineTimerCompareRegisterBase = configMTIMECMP_BASE_ADDRESS;
+volatile uint64_t * pullMachineTimerCompareRegister = NULL;
 
+/* Set configCHECK_FOR_STACK_OVERFLOW to 3 to add ISR stack checking to task
+stack checking.  A problem in the ISR stack will trigger an assert, not call the
+stack overflow hook function (because the stack overflow hook is specific to a
+task stack, not the ISR stack). */
+#if defined( configISR_STACK_SIZE_WORDS ) && ( configCHECK_FOR_STACK_OVERFLOW > 2 )
+	#warning This path not tested, or even compiled yet.
 
-/*
- * See header file for description.
- */
-StackType_t *pxPortInitialiseStack( StackType_t *pxTopOfStack, TaskFunction_t pxCode, void *pvParameters )
-{
-    int usAddress = ( int ) pxCode;
+	static const uint8_t ucExpectedStackBytes[] = {
+									portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
+									portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
+									portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
+									portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
+									portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE };	\
 
-    /* End of stack marker. Useful for debugging - unncecessary for deployment */
-    *pxTopOfStack = ( StackType_t ) 0xdeadbeef;
-    pxTopOfStack--;
+	#define portCHECK_ISR_STACK() configASSERT( ( memcmp( ( void * ) xISRStack, ( void * ) ucExpectedStackBytes, sizeof( ucExpectedStackBytes ) ) == 0 ) )
+#else
+	/* Define the function away. */
+	#define portCHECK_ISR_STACK()
+#endif /* configCHECK_FOR_STACK_OVERFLOW > 2 */
 
-    /* reg x31 -> x2 */
-    pxTopOfStack -= 30;
+/*-----------------------------------------------------------*/
 
-    /* return address: x1*/
-    *pxTopOfStack = ( StackType_t ) pxCode;
-    pxTopOfStack--;
+#if( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIMECMP_BASE_ADDRESS != 0 )
 
-    /* zero register not pushed to stack - zero anyway */
+	void vPortSetupTimerInterrupt( void )
+	{
+	uint32_t ulCurrentTimeHigh, ulCurrentTimeLow;
+	volatile uint32_t * const pulTimeHigh = ( volatile uint32_t * const ) ( ( configMTIME_BASE_ADDRESS ) + 4UL ); /* 8-byte typer so high 32-bit word is 4 bytes up. */
+	volatile uint32_t * const pulTimeLow = ( volatile uint32_t * const ) ( configMTIME_BASE_ADDRESS );
+	volatile uint32_t ulHartId;
 
-    /* mepc */
-    /* put the start of the code in the mepc register in order to account for a context switch where the task gets
-       switch in and has never run before */
-    *pxTopOfStack = ( StackType_t ) pxCode;
+		__asm volatile( "csrr %0, mhartid" : "=r"( ulHartId ) );
+		pullMachineTimerCompareRegister  = ( volatile uint64_t * ) ( ullMachineTimerCompareRegisterBase + ( ulHartId * sizeof( uint64_t ) ) );
 
-    return pxTopOfStack;
-}
+		do
+		{
+			ulCurrentTimeHigh = *pulTimeHigh;
+			ulCurrentTimeLow = *pulTimeLow;
+		} while( ulCurrentTimeHigh != *pulTimeHigh );
+
+		ullNextTime = ( uint64_t ) ulCurrentTimeHigh;
+		ullNextTime <<= 32ULL; /* High 4-byte word is 32-bits up. */
+		ullNextTime |= ( uint64_t ) ulCurrentTimeLow;
+		ullNextTime += ( uint64_t ) uxTimerIncrementsForOneTick;
+		*pullMachineTimerCompareRegister = ullNextTime;
+
+		/* Prepare the time to use after the next tick interrupt. */
+		ullNextTime += ( uint64_t ) uxTimerIncrementsForOneTick;
+	}
+
+#endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIME_BASE_ADDRESS != 0 ) */
 /*-----------------------------------------------------------*/
 
 BaseType_t xPortStartScheduler( void )
 {
-    // Configure ISRs
-    //int_init();
-    //int_add(TIMER_A_OUTPUT_CMP, (void *) int_time_cmp, 0);
+extern void xPortStartFirstTask( void );
 
-    // enable timer interrupt
-    IER = 0xF0000000;
+	#if( configASSERT_DEFINED == 1 )
+	{
+		volatile uint32_t mtvec = 0;
 
-    /* Setup the hardware to generate the tick. */
-    prvSetupTimerInterrupt();
-
-    /* Restore the context of the first task that is going to run. */
-    portRESTORE_CONTEXT();
-    int_enable();
-    /* Simulate a function call end as generated by the compiler.  We will now
-    jump to the start of the task the context of which we have just restored. */
-    asm volatile ( "ret" );
-
-    /* Should not get here. */
-    return pdTRUE;
+		/* Check the least significant two bits of mtvec are 00 - indicating
+		single vector mode. */
+		__asm volatile( "csrr %0, mtvec" : "=r"( mtvec ) );
+                printf("get mtvec %d \n",mtvec);
+		configASSERT( ( mtvec & 0x03UL ) == 0 );
+                printf("after assert mtvec %d \n",mtvec);
+		/* Check alignment of the interrupt stack - which is the same as the
+		stack that was being used by main() prior to the scheduler being
+		started. */
+		configASSERT( ( xISRStackTop & portBYTE_ALIGNMENT_MASK ) == 0 );
+                printf("after assert xISRStackTop %d portBYTE_ALIGNMENT_MASK %d \n", xISRStackTop, portBYTE_ALIGNMENT_MASK);
+		#ifdef configISR_STACK_SIZE_WORDS
+		{
+			memset( ( void * ) xISRStack, portISR_STACK_FILL_BYTE, sizeof( xISRStack ) );
+                        printf("after memset \n");
+		}
+		#endif	 /* configISR_STACK_SIZE_WORDS */
+	}
+	#endif /* configASSERT_DEFINED */
+        printf("before vPortSetupTimerInterrupt \n");
+	/* If there is a CLINT then it is ok to use the default implementation
+	in this file, otherwise vPortSetupTimerInterrupt() must be implemented to
+	configure whichever clock is to be used to generate the tick interrupt. */
+	vPortSetupTimerInterrupt();
+        printf("after vPortSetupTimerInterrupt \n");
+	#if( ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIMECMP_BASE_ADDRESS != 0 ) )
+	{
+		/* Enable mtime and external interrupts.  1<<7 for timer interrupt, 1<<11
+		for external interrupt.  _RB_ What happens here when mtime is not present as
+		with pulpino? */
+		__asm volatile( "csrs mie, %0" :: "r"(0x880) );
+	}
+	#else
+	{
+		/* Enable external interrupts. */
+		__asm volatile( "csrs mie, %0" :: "r"(0x800) );
+	}
+	#endif /* ( configMTIME_BASE_ADDRESS != 0 ) && ( configMTIMECMP_BASE_ADDRESS != 0 ) */
+        printf("before xPortStartFirstTask \n");
+	xPortStartFirstTask();
+        
+	/* Should not get here as after calling xPortStartFirstTask() only tasks
+	should be executing. */
+	return pdFAIL;
 }
 /*-----------------------------------------------------------*/
 
 void vPortEndScheduler( void )
 {
-    int_disable();
+	/* Not implemented. */
+	for( ;; );
 }
-/*-----------------------------------------------------------*/
 
-/*
- * Manual context switch.
- */
-void vPortYield( void );
-void vPortYield( void )
-{
-    portSAVE_CONTEXT();
-    vTaskSwitchContext();
-    portRESTORE_CONTEXT();
-    int_enable();
-    /* called in a non interrupt context only - this function
-     accounts for manual context switches */
-    // asm volatile ("addi sp,   sp, 0x10                       \n\t");
-    asm volatile ( "ret" );
-    /* restore from restored context return register
-                              we need this manual return since GCC would return to the task
-                              it thinks it just left (where it knows where it stored the return address). */
-}
-/*-----------------------------------------------------------*/
 
-/*
- * Context switch function used by the tick.  This must be identical to
- * vPortYield() from the call to vTaskSwitchContext() onwards.  The only
- * difference from vPortYield() is the tick count is incremented as the
- * call comes from the tick ISR - this function is called inside a ISR only
- * and needs to return with the MRET instruction.
- */
-void vPortYieldFromTick( void );
-void vPortYieldFromTick( void )
-{
-    // next time the stored task will resume from here
-    portSAVE_CONTEXT();
-    if ( xTaskIncrementTick() != pdFALSE ) {
-        vTaskSwitchContext();
-    }
-    portRESTORE_CONTEXT();
-    int mcause;
-    csrr(mcause, mcause);
-    // clear pending register
-    ICP = (1 << mcause);
-
-    // this is hacky but needed since we would run directly into
-    // another interrupt if we didn't wait long enough.
-    for (int i = 0; i < 6; i++)
-        asm volatile ("nop");
-    int_enable();
-    /* we do need this since the return from interrupt is not handled
-       in the crt0 runtime - because the call to the timer ISR is naked */
-    /* return address is restored from stack to the empc register */
-    // asm volatile ("addi sp,   sp, 0x10                       \n\t");
-    asm volatile ( "mret" );
-}
-/*-----------------------------------------------------------*/
-
-/*
- * Setup mtime and mtimecmp registers accordingly.
- */
-static void prvSetupTimerInterrupt( void )
-{
-    unsigned int CompareMatch;
-
-    CompareMatch = configCPU_CLOCK_HZ / configTICK_RATE_HZ;
-
-    /* Setup Timer A */
-    TOCRA = CompareMatch;
-    TPRA  = 0x27; /* Timer A - enable interrupts, start timer */
-
-}
-/*-----------------------------------------------------------*/
-
-#if configUSE_PREEMPTION == 1
-
-/*
- * Tick ISR for preemptive scheduler.  We can use a naked attribute as
- * the context is saved at the start of vPortYieldFromTick().  The tick
- * count is incremented after the context is saved.
- */
-
-void ISR_TA_CMP(void)
-{
-    /* interrupts are disabled until eret */
-    vPortYieldFromTick();
-
-}
-#else
-/*
- * Tick ISR for the cooperative scheduler.  All this does is increment the
- * tick count.  We don't need to switch context, this can only be done by
- * manual calls to taskYIELD();
- */
-
-void ISR_TA_CMP(void)
-{
-    int mcause;
-    csrr(mcause, mcause);
-    // clear pending register
-    ICP = (1 << mcause);
-    xTaskIncrementTick();
-
-    /* return address is restored from stack to the empc register */
-    asm volatile ( "mret" );
-}
-#endif
 
 
 

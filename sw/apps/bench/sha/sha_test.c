@@ -14,7 +14,7 @@ SHA_INFO sha_info __sram;
 uint8_t data[256+16] __sram;
 
 void test_setup() {
-  for (int i = 0; i != 256; ++i)
+  for (int i = 0; i != 256 + 16; ++i)
     data[i] = i;
 }
 
@@ -29,12 +29,14 @@ void test_run() {
 }
 
 int test_check() {
+  // I do not know if the following digests is right or not.
+  // They are produced by x86.
   uint32_t check_digest[5] = {
-    0x6df33e84,
-    0xbfb762a3,
-    0xd55acf9e,
-    0xf2dd5e59,
-    0xf4d61769
+    0x6a0c1353,
+    0x72750a22,
+    0x41902d86,
+    0xf712a6df,
+    0x11e1bfe8
   };
   for (int i = 0; i < 5; i++) {
     if (sha_info.digest[i] != check_digest[i])

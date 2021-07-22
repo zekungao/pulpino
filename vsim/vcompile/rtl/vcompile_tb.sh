@@ -49,12 +49,16 @@ vlog -quiet -sv -work ${LIB_NAME} +incdir+${TB_PATH}                            
 vlog -quiet -sv -work ${LIB_NAME} +incdir+${TB_PATH}                                                ${TB_PATH}/if_spi_master.sv    || goto error
 vlog -quiet -sv -work ${LIB_NAME} +incdir+${TB_PATH}                                                ${TB_PATH}/uart.sv             || goto error
 vlog -quiet -sv -work ${LIB_NAME} +incdir+${TB_PATH}                                                ${TB_PATH}/i2c_eeprom_model.sv || goto error
+vlog -quiet -sv -work ${LIB_NAME} +incdir+${TB_PATH}                                                ${TB_PATH}/chip_top_wrapper.sv || goto error
+vlog -quiet -sv -work ${LIB_NAME} +incdir+${TB_PATH}                                                ${TB_PATH}/flash_wrapper.sv    || goto error
+vlog -quiet -sv -work ${LIB_NAME} +incdir+${TB_PATH}                                                ${TB_PATH}/if_exit_status.sv   || goto error
+vlog -quiet -sv -work ${LIB_NAME} +incdir+${TB_PATH} +incdir+${RTL_PATH}/includes/                  ${TB_PATH}/tb_chip_top.sv      || goto error
 vlog -quiet -sv -work ${LIB_NAME} +incdir+${TB_PATH} +incdir+${RTL_PATH}/includes/                  ${TB_PATH}/tb.sv               || goto error
 
 vlog -quiet -sv -work ${LIB_NAME}     +incdir+${TB_PATH} -dpiheader ${TB_PATH}/jtag_dpi/dpiheader.h ${TB_PATH}/jtag_dpi.sv         || goto error
 vlog -quiet -64 -work ${LIB_NAME} -ccflags "-I${TB_PATH}/jtag_dpi/ -m64" -dpicpppath `which gcc`    ${TB_PATH}/jtag_dpi/jtag_dpi.c || goto error
 # 
-vlog -quiet -sv -work ${LIB_NAME} +incdir+${TB_PATH} +incdir+${RTL_PATH}/includes/ -dpiheader ${TB_PATH}/mem_dpi/dpiheader.h    ${TB_PATH}/tb.sv || goto error
+vlog -quiet -sv -work ${LIB_NAME} +incdir+${TB_PATH} +incdir+${RTL_PATH}/includes/ -dpiheader ${TB_PATH}/mem_dpi/dpiheader.h    ${TB_PATH}/tb_chip_top.sv || goto error
 vlog -quiet -64 -work ${LIB_NAME} -ccflags "-I${TB_PATH}/mem_dpi/  -m64" -dpicpppath `which gcc`    ${TB_PATH}/mem_dpi/mem_dpi.c                 || goto error
 # 
 echo "${Cyan}--> ${IP_NAME} compilation complete! ${NC}"

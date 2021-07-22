@@ -124,17 +124,7 @@ set(VSIM "vsim" CACHE FILEPATH "Path to the vsim executable")
 
 
 add_custom_target(vcompile
-  COMMAND tcsh -c "./vcompile/build_rtl_sim.csh"
-  WORKING_DIRECTORY ${PULP_MODELSIM_DIRECTORY}
-  ${USES_TERMINAL})
-
-add_custom_target(vcompile.ps
-  COMMAND tcsh -c "env PL_NETLIST=${PL_NETLIST} ./vcompile/vcompile_ps.csh"
-  WORKING_DIRECTORY ${PULP_MODELSIM_DIRECTORY}
-  ${USES_TERMINAL})
-
-add_custom_target(vcompile.pl
-  COMMAND tcsh -c "env PL_NETLIST=${PL_NETLIST} ./vcompile/vcompile_pl.csh"
+  COMMAND tcsh -c "env ICB_PATH=\"${ICB_PATH}\" PULPINO_V_PATH=\"${PULPINO_V_PATH}\" PROCESS=\"${PROCESS}\" RTL_COVERAGE=${RTL_COVERAGE} USE_ZERO_RISCY=${USE_ZERO_RISCY} RISCY_RV32F=${RISCY_RV32F} PL_DIR=${PL_DIR} ./vcompile/build_rtl_sim.csh"
   WORKING_DIRECTORY ${PULP_MODELSIM_DIRECTORY}
   ${USES_TERMINAL})
 

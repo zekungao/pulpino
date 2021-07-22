@@ -69,8 +69,8 @@
 
 #define GPIO_IRQ_FALL  0x3
 #define GPIO_IRQ_RISE  0x2
-#define GPIO_IRQ_LEV0  0x0
-#define GPIO_IRQ_LEV1  0x1
+#define GPIO_IRQ_LEV0  0x1
+#define GPIO_IRQ_LEV1  0x0
 
 void set_pin_function(int pinnumber, int function);
 int  get_pin_function(int pinnumber);

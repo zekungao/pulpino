@@ -1,1 +1,1 @@
-add_application(led_demo main.c)
+add_application(led_demo main.c LABELS "fpga")

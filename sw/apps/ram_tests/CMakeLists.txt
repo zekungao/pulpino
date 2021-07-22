@@ -1,0 +1,2 @@
+add_subdirectory(data_mem_test)
+add_subdirectory(instr_mem_test)

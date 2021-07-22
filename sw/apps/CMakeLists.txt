@@ -38,7 +38,24 @@ macro(add_application NAME SOURCE_FILES)
       )
   endif()
 
-  add_executable(${NAME}.elf $<TARGET_OBJECTS:crt0> ${SOURCE_FILES})
+
+  # Use USE_ZERO_RISCY macro to let test code adapt to CPU core specific behavior.
+  # E.g. Interruption handling difference.
+  add_definitions(-DUSE_ZERO_RISCY=${USE_ZERO_RISCY})
+
+  if("${NAME}" STREQUAL "freertos")
+    # message("Adding app: ${NAME}")
+    set(freertos_crt0 "${PROJECT_SOURCE_DIR}/ref/crt0.riscv_freertos.S")
+    set_source_files_properties(${freertos_crt0} PROPERTIES LANGUAGE C)
+    add_library(freertos_crt0 OBJECT ${freertos_crt0})
+    add_executable(${NAME}.elf $<TARGET_OBJECTS:freertos_crt0> ${SOURCE_FILES})
+    # set compile defintions for freertos
+    set_target_properties(${NAME}.elf 
+      PROPERTIES 
+      COMPILE_DEFINITIONS __riscv_xlen=32)
+  else()
+    add_executable(${NAME}.elf $<TARGET_OBJECTS:crt0> ${SOURCE_FILES})
+  endif()
 
   # set subdirectory for add_executable
   if(NOT "${SUBDIR}" STREQUAL "")
@@ -88,6 +105,8 @@ macro(add_application NAME SOURCE_FILES)
   else()
     set_target_properties(${NAME}.elf PROPERTIES TB_TEST "")
   endif()
+
+
 
   add_custom_target(${NAME}.read)
   add_custom_command(TARGET ${NAME}.read
@@ -192,7 +211,13 @@ endmacro()
 
 ################################################################################
 
+add_cover_target()
+
+################################################################################
+
+add_subdirectory(must_fail)
 add_subdirectory(helloworld)
+add_subdirectory(ram_tests)
 
 if(${ARDUINO_LIB})
   add_subdirectory(Arduino_tests)
@@ -218,6 +243,8 @@ if(${RISCV})
 endif()
 add_subdirectory(sequential_tests)
 add_subdirectory(imperio_tests)
+add_subdirectory(icbench_tests)
+add_subdirectory(user_plugin_tests)
 
 if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/scratch/")
   add_subdirectory(scratch)

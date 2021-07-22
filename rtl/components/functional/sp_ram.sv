@@ -10,9 +10,9 @@
 
 module sp_ram
   #(
-    parameter ADDR_WIDTH = 8,
-    parameter DATA_WIDTH = 32,
-    parameter NUM_WORDS  = 256
+    parameter RAM_SIZE   = 256,  // in byte
+    parameter ADDR_WIDTH = $clog2(RAM_SIZE),
+    parameter DATA_WIDTH = 32
   )(
     // Clock and Reset
     input  logic                    clk,
@@ -25,7 +25,7 @@ module sp_ram
     input  logic [DATA_WIDTH/8-1:0] be_i
   );
 
-  localparam words = NUM_WORDS/(DATA_WIDTH/8);
+  localparam words = RAM_SIZE/(DATA_WIDTH/8);
 
   logic [DATA_WIDTH/8-1:0][7:0] mem[words];
   logic [DATA_WIDTH/8-1:0][7:0] wdata;
@@ -56,5 +56,18 @@ module sp_ram
       assign wdata[w] = wdata_i[(w+1)*8-1:w*8];
     end
   endgenerate
+
+  // synthesis translate_off
+
+  task write_word(
+    // byte_addr must be word aligned
+    input integer byte_addr,
+    input logic [DATA_WIDTH - 1:0] word);
+
+    mem[byte_addr/(DATA_WIDTH / 8)] = word;
+
+  endtask
+
+  // synthesis translate_on
 
 endmodule
