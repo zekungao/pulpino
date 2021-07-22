@@ -5,6 +5,7 @@
 # All rights reserved.
 
 import sys,os,subprocess,re
+import argparse
 
 devnull = open(os.devnull, 'wb')
 
@@ -53,18 +54,19 @@ def find_server():
     print tcolors.ERROR + "ERROR: could not find remote server." + tcolors.ENDC
     sys.exit(1)
 
-if len(sys.argv) > 1:
-    server = sys.argv[1]
-    group  = "pulp-open"
-    if "http" in server:
-        remote = "%s/%s" % (server, group)
-    else:
-        remote = "%s:%s" % (server, group)
 
-if not vars().has_key('server'):
-    [server, group, remote] = find_server()
+ap = argparse.ArgumentParser(
+    description='Fetch dependent IPs')
+ap.add_argument('remote', nargs='?', help='git remote server')
+args = ap.parse_args()
 
-print "Using remote git server %s, remote is %s" % (server, remote)
+if args.remote is None:
+    _, _, remote = find_server()
+else:
+    remote = args.remote
+
+
+print "Using git remote %s" % (remote,)
 
 
 # download IPApproX tools in ./ipstools and import them
@@ -76,13 +78,7 @@ if os.path.exists("ipstools") and os.path.isdir("ipstools"):
     import ipstools
 else:
     # try to find the ipstools repository
-    if "http" in remote:
-        if execute("git clone %s/IPApproX.git ipstools -b verilator-pulpino" % (remote)) != 0:
-            execute("git clone %s/pulp-tools/IPApproX.git ipstools -b verilator-pulpino" % (server))
-    else:
-        if execute("git clone %s/IPApproX.git ipstools -b verilator-pulpino" % (remote)) != 0:
-            execute("git clone %s:pulp-tools/IPApproX.git ipstools -b verilator-pulpino" % (server))
-
+    execute("git clone %s/IPApproX.git ipstools -b verilator-pulpino" % (remote))
     import ipstools
 
 # creates an IPApproX database
