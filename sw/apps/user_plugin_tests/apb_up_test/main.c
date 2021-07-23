@@ -115,6 +115,9 @@ void check_ccs_irq(int* errors) {
     printf("User Plugin Interrupt has been enabled\n");
     printf("Going to set int pending bit, and int handler will be called\n");
     UP_APB_CMD = UP_CMD_SET_INT_BIT;
+    // For zeroriscy cpu core, the interrupt is handled after one 'nop'.
+    // For ri5cy cpu core, the interrupt is handled after two 'nop's.
+    asm volatile("nop");
     asm volatile("nop");
 
     if (g_up_int_triggers != 1) {
