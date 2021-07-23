@@ -16,7 +16,9 @@ add_subdirectory(convolution)
 add_subdirectory(pooling)
 add_subdirectory(cnn_layer)
 add_subdirectory(stencil)
-add_subdirectory(dct)
+# ri5cy only supprts float32, but dct uses double type,
+# and illegal instruction error raises during simulation.
+#add_subdirectory(dct)
 add_subdirectory(fdct)
 add_subdirectory(non_separable_2d_filter)
 
