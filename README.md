@@ -69,12 +69,28 @@ Use the environment variable `USE_ZERO_RISCY` and set it to either `1` for zero-
 
 PULPino uses multiple git subrepositories
 
-To clone those subrepositores and update them, use
+To clone those subrepositores and update them from the same user/organization of the PULPino repository, use
 
-    ./update-ips.py
+```sh
+./update-ips.py
+```
 
 This script will read the `ips_lists.txt` file and update to the versions
 specified in there. You can choose specific commits, tags or branches.
+
+### Forked Repository
+
+If only PULPino repository is forked, to clone/update subrepositories in the forked repository, use
+
+```sh
+./update-ips.py https://github.com/icb-platform
+```
+
+If subrepositories have also been forked, use
+
+```sh
+./update-ips.py
+```
 
 
 ## Documentation
@@ -89,75 +105,7 @@ It is written in LaTeX and there is no pdf included in the repository. Simply ty
 inside the folder to generate the pdf. Note that you need a working version of latex for this step.
 
 
-## Running simulations
-
-The software is built using CMake.
-Create a build folder somewhere, e.g. in the sw folder
-
-    mkdir build
-
-Copy the cmake-configure.{*}.gcc.sh bash script to the build folder.
-This script can be found in the sw subfolder of the git repository.
-
-Modify the cmake-configure script to your needs and execute it inside the build folder.
-This will setup everything to perform simulations using ModelSim.
-
-Four cmake-configure bash scripts have been already configured:
-
-1) cmake_configure.riscv.gcc.sh
-
-It automatically selects the RISCY cores and compiles SW with all the PULP-extensions 
-and the RV32IM support.
-The GCC ETH compiler is needed and the GCC march flag set to "IMXpulpv2".
-
-2) cmake_configure.riscvfloat.gcc.sh
-
-It automatically selects the RISCY cores and compiles SW with all the PULP-extensions 
-and the RV32IMF support.
-The GCC ETH compiler is needed and he GCC march flag set to "IMFXpulpv2".
-
-3) cmake_configure.zeroriscy.gcc.sh
-
-It automatically selects the zero-riscy cores and compiles SW with the RV32IM support
-(march flag set to RV32IM).
-
-4) cmake_configure.microriscy.gcc.sh
-
-It automatically selects the zero-riscy cores and compiles SW with the RV32E support.
-The slim GCC ETH compiler is needed and he GCC march flag set to "RV32I" and the "-m16r"
-is passed to the compiler to use only the RV32E ISA support.
-
-
-Activate the RVC flag in the cmake file if compressed instructions are desired.
-
-
-Inside the build folder, execute
-
-    make vcompile
-
-to compile the RTL libraries using ModelSim.
-
-To run a simulation in the modelsim GUI use
-
-    make helloworld.vsim
-
-
-To run simulations in the modelsim console use
-
-    make helloworld.vsimc
-
-This will output a summary at the end of the simulation.
-This is intended for batch processing of a large number of tests.
-
-Replace helloworld with the test/application you want to run.
-
-
-### Using ninja instead of make
-
-You can use ninja instead make to build software for PULPino, just replace all
-occurrences of make with ninja.
-The same targets are supported on both make and ninja.
-
+## [Running simulations](SIM.md)
 
 
 ## Interactive debug
